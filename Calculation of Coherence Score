@@ -1,0 +1,60 @@
+import pandas as pd
+import re
+from sklearn.feature_extraction.text import CountVectorizer
+from sklearn.decomposition import LatentDirichletAllocation
+from gensim.models.coherencemodel import CoherenceModel
+from gensim.corpora.dictionary import Dictionary
+from gensim.matutils import Sparse2Corpus
+
+# Lade den Datensatz
+file_path = 'restaurant_reviews.csv'
+df = pd.read_csv(file_path)
+
+# Datenbereinigung
+def clean_text_no_stopwords(text):
+    # Umwandlung in Kleinbuchstaben
+    text = text.lower()
+    # Entfernen von Satzzeichen, Zahlen und Sonderzeichen
+    text = re.sub(r'\W', ' ', text)
+    text = re.sub(r'\s+', ' ', text)
+    return text
+
+# Fehlende Werte auffüllen und Bereinigungsfunktion anwenden
+df['Review'] = df['Review'].fillna('')
+df['cleaned_review'] = df['Review'].apply(clean_text_no_stopwords)
+
+# Initialisieren des Bag of Words Vektorisierers
+bow_vectorizer = CountVectorizer(max_features=500, stop_words='english')
+
+# Anwenden des Vektorisierers auf die bereinigten Texte
+bow_matrix = bow_vectorizer.fit_transform(df['cleaned_review'])
+
+# Konvertiere BoW Matrix in Gensim Corpus und Dictionary Format
+corpus = Sparse2Corpus(bow_matrix, documents_columns=False)
+id2word = Dictionary.from_corpus(corpus, id2word=dict((i, word) for word, i in bow_vectorizer.vocabulary_.items()))
+
+# Funktion zur Berechnung des Coherence Scores
+def compute_coherence_values(corpus, dictionary, texts, start, limit, step):
+    coherence_values = []
+    for num_topics in range(start, limit, step):
+        # Erstellen des LDA Modells
+        lda_model = LatentDirichletAllocation(n_components=num_topics, random_state=42)
+        lda_model.fit(bow_matrix)
+        
+        # Themen aus dem LDA Modell extrahieren
+        topics = [[id2word[id] for id in topic.argsort()[:-10 - 1:-1]] for topic in lda_model.components_]
+        
+        # Berechnung des Coherence Score
+        coherence_model = CoherenceModel(topics=topics, texts=texts, dictionary=dictionary, coherence='c_v')
+        coherence_values.append(coherence_model.get_coherence())
+    
+    return coherence_values
+
+# Berechnung des Coherence Scores für verschiedene Themenanzahlen
+start, limit, step = 2, 10, 1
+texts = df['cleaned_review'].apply(lambda x: x.split())  # Aufteilen der Reviews in Wörter
+coherence_values = compute_coherence_values(corpus, id2word, texts, start, limit, step)
+
+# Ausgabe der Coherence Scores
+for num, coherence in zip(range(start, limit, step), coherence_values):
+    print(f"Num Topics: {num}, Coherence Score: {coherence}")

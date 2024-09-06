@@ -1,0 +1,39 @@
+import pandas as pd
+import re
+from sklearn.feature_extraction.text import CountVectorizer, TfidfVectorizer
+
+# Lade den Datensatz
+file_path = 'restaurant_reviews.csv'
+df = pd.read_csv(file_path)
+
+# Datenbereinigung Funktion
+def clean_text_no_stopwords(text):
+    # Umwandlung in Kleinbuchstaben
+    text = text.lower()
+    # Entfernen von Satzzeichen, Zahlen und Sonderzeichen
+    text = re.sub(r'\W', ' ', text)
+    text = re.sub(r'\s+', ' ', text)
+    return text
+
+# Fehlende Werte auffüllen und Bereinigungsfunktion anwenden
+df['Review'] = df['Review'].fillna('')
+df['cleaned_review'] = df['Review'].apply(clean_text_no_stopwords)
+
+# Initialisieren der Vektorisierer für Bag of Words und TF-IDF
+bow_vectorizer = CountVectorizer(max_features=500, stop_words='english')
+tfidf_vectorizer = TfidfVectorizer(max_features=500, stop_words='english')
+
+# Anwenden der Vektorisierer auf die bereinigten Texte
+bow_matrix = bow_vectorizer.fit_transform(df['cleaned_review'])
+tfidf_matrix = tfidf_vectorizer.fit_transform(df['cleaned_review'])
+
+# Konvertiere die Matrizen in DataFrames für eine einfachere Ansicht
+bow_df = pd.DataFrame(bow_matrix.toarray(), columns=bow_vectorizer.get_feature_names_out())
+tfidf_df = pd.DataFrame(tfidf_matrix.toarray(), columns=tfidf_vectorizer.get_feature_names_out())
+
+# Zeige die ersten Zeilen der Ergebnisse an
+print("Bag of Words Auswertung:")
+print(bow_df.head())
+
+print("\nTF-IDF Auswertung:")
+print(tfidf_df.head())

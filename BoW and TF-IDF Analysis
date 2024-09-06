@@ -2,7 +2,7 @@ import pandas as pd
 import re
 from sklearn.feature_extraction.text import CountVectorizer, TfidfVectorizer
 
-# Lade den Datensatz
+# Lade den Datensatz "restaurant_reviews.csv"
 file_path = 'restaurant_reviews.csv'
 df = pd.read_csv(file_path)
 
